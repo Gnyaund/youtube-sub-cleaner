@@ -1,0 +1,11 @@
+{
+  "name": "youtube-subs-cleaner",
+  "version": "1.0.0",
+  "description": "Clean up your YouTube channel subscribers.",
+  "main": "index.js",
+  "scripts": {
+    "test": "test"
+  },
+  "author": "Gnya",
+  "license": "ISC"
+}
