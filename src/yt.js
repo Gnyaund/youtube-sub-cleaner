@@ -1,11 +1,5 @@
-/  googleapis is CommonJS  /;
-
 const fs = require("fs");
-const readline = require("readline");
 const { google } = require("googleapis");
-const { stringify } = require("querystring");
-const { title } = require("process");
-const { get } = require("http");
 
 const googleAuth = () => {
   const CREDENTIALS_PATH = "credentials.json";
@@ -23,75 +17,69 @@ const googleAuth = () => {
 
   return oAuth2Client;
 };
-/*
-(async () => {
+
+async function getNumOfSubs() {
   const auth = googleAuth();
   const service = google.youtube({ version: "v3", auth });
-  //console.log(youtube.channels);
-  try {
-    service.channels.list(
-      {
-        auth: auth,
-        part: "snippet,contentDetails,statistics, brandingSettings",
-        mine: true,
-      },
-      function (err, response) {
-        if (err) {
-          console.log("The API returned an error: " + err);
-          return;
-        }
-        const channels = response.data.items;
-        if (channels.length == 0) {
-          console.log("No channel found.");
-        } else {
-          console.log(
-            "This channel's ID is %s. Its title is '%s', and " +
-              "it has %s views.",
-            channels[0].id,
-            channels[0].snippet.title,
-            channels[0].statistics.viewCount
-          );
-          //console.log(JSON.stringify(channels, undefined, 4));
-        }
-      }
-    );
-  } catch (error) {
-    console.log("The API returned an error: " + error);
-  }
-})();
-*/
 
-async function getSubs() {
-  const auth = googleAuth();
-  const service = google.youtube({ version: "v3", auth });
-  // Acquire an auth client, and bind it to all future calls
-
-  // Do the magic
   const res = await service.subscriptions.list({
     mine: true,
     part: "snippet",
-    fields: "pageInfo(totalResults),items(id, snippet(title))",
+    fields: "pageInfo(totalResults)",
   });
-  //console.log(JSON.stringify(res.data, undefined, 4))
-  const channel = res.data.items[0];
-  const snippet = channel.snippet;
-  return {
-    id: channel.id,
-    name: snippet.title,
-  };
-  /*
-  console.log(res.data.items["snippet"]);
-  currentSubs: res.data["pageInfo"]["totalResults"]
 
-  */
+  return res.data.pageInfo.totalResults;
+}
+
+let count = 0;
+
+async function getSubs(nextpage) {
+  const auth = googleAuth();
+  const service = google.youtube({ version: "v3", auth });
+
+  if (count == 0) {
+    count++;
+    const res = await service.subscriptions.list({
+      mine: true,
+      part: "snippet",
+      fields: "nextPageToken, items(id, snippet(title))",
+      maxResults: 1,
+    });
+
+    const ch = res.data.items[0];
+    const snippet = channel.snippet;
+    return {
+      id: channel.id,
+      name: snippet.title,
+      nextToken: res.data.nextPageToken,
+    };
+  } else {
+    const res = await service.subscriptions.list({
+      mine: true,
+      part: "snippet",
+      fields: "nextPageToken,items(id, snippet(title))",
+      pageToken: nextpage,
+      maxResults: 1,
+    });
+
+    const channel = res.data.items[0];
+    const snippet = channel.snippet;
+    return {
+      id: channel.id,
+      name: snippet.title,
+      nextToken: res.data.nextPageToken,
+    };
+  }
 }
 
 async function main() {
-  const subsList = await getSubs().catch((e) => {
-    console.error(e);
-    throw e;
-  });
+  //const num_of_subs = await getNumOfSubs();
+  //console.log(num_of_subs);
+
+  const subsList = await getSubs();
+  const nextsub = await getSubs(subsList.nextToken);
   console.log(subsList);
+  console.log(nextsub);
 }
 
 main().catch((e) => {
