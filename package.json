@@ -2,10 +2,16 @@
   "name": "youtube-subs-cleaner",
   "version": "1.0.0",
   "description": "Clean up your YouTube channel subscribers.",
-  "main": "index.js",
+  "main": "/src/index.js",
   "scripts": {
     "test": "test"
   },
   "author": "Gnya",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "google-auth-library": "^7.14.1",
+    "google-auth-token-generator": "^0.2.0",
+    "googleapis": "^100.0.0",
+    "youtube-api": "^3.0.1"
+  }
 }
