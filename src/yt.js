@@ -46,7 +46,7 @@ async function getSubs(nextpage) {
       maxResults: 1,
     });
 
-    const ch = res.data.items[0];
+    const channel = res.data.items[0];
     const snippet = channel.snippet;
     return {
       id: channel.id,
