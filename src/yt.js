@@ -32,6 +32,23 @@ async function getNumOfSubs() {
 }
 
 let count = 0;
+let chInfo = [];
+const subsListSettings = {
+  mine: true,
+  part: "snippet",
+  fields: "nextPageToken, items(id, snippet(title))",
+  maxResults: 4,
+};
+
+const subsListSettings_next = (nextpage) => {
+  return {
+    mine: true,
+    part: "snippet",
+    fields: "nextPageToken, items(id, snippet(title))",
+    maxResults: subsListSettings.maxResults,
+    pageToken: nextpage,
+  };
+};
 
 async function getSubs(nextpage) {
   const auth = googleAuth();
@@ -39,13 +56,8 @@ async function getSubs(nextpage) {
 
   if (count == 0) {
     count++;
-    const res = await service.subscriptions.list({
-      mine: true,
-      part: "snippet",
-      fields: "nextPageToken, items(id, snippet(title))",
-      maxResults: 1,
-    });
-
+    const res = await service.subscriptions.list(subsListSettings);
+    chInfo = res.data.items;
     const channel = res.data.items[0];
     const snippet = channel.snippet;
     return {
@@ -54,16 +66,13 @@ async function getSubs(nextpage) {
       nextToken: res.data.nextPageToken,
     };
   } else {
-    const res = await service.subscriptions.list({
-      mine: true,
-      part: "snippet",
-      fields: "nextPageToken,items(id, snippet(title))",
-      pageToken: nextpage,
-      maxResults: 1,
-    });
+    const res = await service.subscriptions.list(
+      subsListSettings_next(nextpage)
+    );
 
     const channel = res.data.items[0];
     const snippet = channel.snippet;
+    Array.prototype.push.apply(chInfo, res.data.items);
     return {
       id: channel.id,
       name: snippet.title,
@@ -73,13 +82,14 @@ async function getSubs(nextpage) {
 }
 
 async function main() {
-  //const num_of_subs = await getNumOfSubs();
-  //console.log(num_of_subs);
-
+  const num_of_subs = await getNumOfSubs();
+  let executeCount = Math.round(num_of_subs / 50);
   const subsList = await getSubs();
+  //nextsubをexecuteCountだけ回せばおｋ
+
   const nextsub = await getSubs(subsList.nextToken);
-  console.log(subsList);
-  console.log(nextsub);
+  //console.log(subsList);
+  console.log(chInfo);
 }
 
 main().catch((e) => {
