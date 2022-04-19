@@ -37,7 +37,7 @@ const subsListSettings = {
   mine: true,
   part: "snippet",
   fields: "nextPageToken, items(id, snippet(title))",
-  maxResults: 4,
+  maxResults: 1,
 };
 
 const subsListSettings_next = (nextpage) => {
@@ -81,7 +81,41 @@ async function getSubs(nextpage) {
   }
 }
 
+//チャンネルIDから投稿動画のプレイリスト取得
+async function getChannel() {
+  const auth = googleAuth();
+  const service = google.youtube({ version: "v3", auth });
+
+  service.channels.list(
+    {
+      part: "snippet,contentDetails,statistics",
+      mine: true,
+    },
+    function () {
+      const channels = response.data.items;
+      console.log(channels[0].contentDetails.relatedPlaylists.uploads);
+    }
+  );
+}
+
+//最新動画の取得
+async function getlatestVideo() {
+  const auth = googleAuth();
+  const youtube = google.youtube({ version: "v3", auth });
+
+  const res = await youtube.playlistItems.list({
+    part: "snippet",
+    playlistId: "UUyld2U7Yg_oWgcbegwVIRUA",
+  });
+  console.log(res.data.items[0].snippet);
+  const video = res.data.items[0].snippet;
+  return {
+    latest_video: video.publishedAt,
+  };
+}
+
 async function main() {
+  /*
   const num_of_subs = await getNumOfSubs();
   let executeCount = Math.round(num_of_subs / 50);
   const subsList = await getSubs();
@@ -89,7 +123,11 @@ async function main() {
 
   const nextsub = await getSubs(subsList.nextToken);
   //console.log(subsList);
+
   console.log(chInfo);
+  */
+  const date = await getlatestVideo();
+  console.log(date);
 }
 
 main().catch((e) => {
