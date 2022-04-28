@@ -1,5 +1,6 @@
 const { google } = require("googleapis");
 const fs = require("fs");
+const _async = require("async");
 
 const googleAuth = () => {
   const CREDENTIALS_PATH = "credentials.json";
@@ -58,47 +59,7 @@ const getChSetting = (ch_id) => {
   return { part: "snippet,contentDetails,statistics", id: ch_id };
 };
 
-//チャンネルIDから投稿動画のプレイリスト取得
-async function getChannel(ch_id) {
-  const auth = googleAuth();
-  const service = google.youtube({ version: "v3", auth });
-
-  const res = await service.channels.list({
-    part: "snippet,contentDetails,statistics",
-    id: ch_id,
-  });
-  const channels = res.data.items;
-  //console.log(channels[0].contentDetails.relatedPlaylists.uploads);
-  return channels[0].contentDetails.relatedPlaylists.uploads;
-}
-
-//最新動画の取得
-async function getlatestVideo(playlist_id) {
-  const auth = googleAuth();
-  const youtube = google.youtube({ version: "v3", auth });
-
-  const res = await youtube.playlistItems.list({
-    part: "snippet",
-    playlistId: playlist_id,
-  });
-  //console.log(res.data.items[0].snippet);
-  const video = res.data.items[0].snippet;
-  return {
-    latest_video: video.publishedAt,
-  };
-}
 let chInfo = [];
-
-async function testing() {
-  const auth = googleAuth();
-  const service = google.youtube({ version: "v3", auth });
-  const res = await service.subscriptions.list({
-    maxResults: 50,
-    mine: true,
-    part: "snippet",
-  });
-  console.log(res.data.items[1].snippet);
-}
 
 //1つずつなら一つの関数にまとめれそう　classとか使えばまとめていけるのかな
 let nextToken = "";
@@ -142,39 +103,52 @@ async function getPropertyfromObject(object) {
     }
   }
 }
+let fo = 0;
 
+async function test() {
+  const workerLim = 10;
+  const res = await _async.mapValuesLimit(
+    chInfo,
+    workerLim,
+    _async.asyncify(getUploadsList)
+  );
+}
+
+//チャンネルIDから投稿動画のプレイリスト取得
+//object: {title: hogehoge, id: foo}
 async function getUploadsList(chList) {
   const auth = googleAuth();
   const service = google.youtube({ version: "v3", auth });
-
-  /*
-  const res = await service.channels.list({
-    part: "snippet,contentDetails,statistics",
-    id: ch_id,
-  });
-  const channels = res.data.items;
-  //console.log(channels[0].contentDetails.relatedPlaylists.uploads);
-  return channels[0].contentDetails.relatedPlaylists.uploads;
-  */
-  const subs = getNumOfSubs();
-  /*
-  Promise.all(
-    chIds.map(async (chList) => {
-      await service.channels
-        .list(getChSetting(chList[i].id))
-        .then(function (response) {
-          const channel = response.data.items;
-          const uploads_id = channel[0].contentDetails.relatedPlaylists.uploads;
-          console.log(uploads_id);
-          chInfo[i].uploads_id = uploads_id;
-        });
+  await Promise.all(
+    chList.map(async (object) => {
+      if (Object.hasOwnProperty.call(chList[0], "id")) {
+        return await service.channels
+          .list({
+            part: "snippet,contentDetails,statistics",
+            id: object.id,
+          })
+          .then(function (response) {
+            const channel = response.data.items;
+            const uploads_id =
+              channel[0].contentDetails.relatedPlaylists.uploads;
+            //console.log("UpID" + uploads_id);
+            object.uploads_id = uploads_id;
+            fo++;
+          });
+      }
     })
   );
-  */
+}
+/* 順序処理*/
+
+async function getUploadsList_old(chList) {
+  const auth = googleAuth();
+  const service = google.youtube({ version: "v3", auth });
+
   for (const key in chList) {
     if (Object.hasOwnProperty.call(chList[0], "id")) {
       //console.log("Hello???");
-      console.log(chList[key].id);
+      //console.log(chList[key].id);
       const data = await service.channels
         .list({
           part: "snippet,contentDetails,statistics",
@@ -183,87 +157,84 @@ async function getUploadsList(chList) {
         .then(function (response) {
           const channel = response.data.items;
           const uploads_id = channel[0].contentDetails.relatedPlaylists.uploads;
-          console.log(uploads_id);
-          //chList[0].uploads_id = uploads_id;
+          //console.log("UpID" + uploads_id);
+          chList[key].uploads_id = uploads_id;
+          fo++;
         });
     }
   }
 }
-/*
-class YoutubeDataAPI {
-  constructor() {
-    this.auth = googleAuth();
-    this.service = google.youtube({ version: "v3", auth: this.auth });
-  }
-  info = [];
-  async getNumOfSub() {
-    const res = await this.service.subscriptions.list({
-      mine: true,
-      part: "snippet",
-      fields: "pageInfo(totalResults)",
+
+async function getUpId(id) {
+  const auth = googleAuth();
+  const service = google.youtube({ version: "v3", auth });
+
+  const data = await service.channels
+    .list({
+      part: "snippet,contentDetails,statistics",
+      id: id,
+    })
+    .then(function (response) {
+      const channel = response.data.items;
+      const uploads_id = channel[0].contentDetails.relatedPlaylists.uploads;
+      console.log(uploads_id);
     });
-    return res.data.pageInfo.totalResults;
-  }
-
-  async getCount() {
-    const subs = await this.getNumOfSub();
-    return Math.round(subs / 50);
-  }
-
-  executeSubsList(token) {
-    this.service.subscriptions.list(subsListSettings(token));
-  }
-  
-  async getChannelInfo() {
-    this.executeSubsList(token).then({
-      function(response) {
-        pagetoken = response.nextPageToken;
-        // 取得したデータを整形して結果用の配列に入れる
-        for (var i = 0; i < response.items.length; i++) {
-          results.push({
-            title: response.items[i].snippet.title,
-            id: response.items[i].snippet.channelId,
-          });
-        }
-        // 次のデータがある場合は再度データ取得を実行
-        if (pagetoken !== undefined) {
-         getChannelInfo();
-          // データの取得が完了した場合はconsoleに結果表示
-        } else {
-          console.log(results);
-        }
-      },
-    });
-  }
-  
-
-  async foo(params) {
-    let ch = await this.service.subscriptions.list(subsListSettings(""));
-    const channel = ch.data.items[0];
-    const snippet = channel.snippet;
-    const count = await this.getCount();
-    for (let index = 0; index < count; index++) {
-      let nextCh = await this.service.subscriptions
-        .list(subsListSettings(nextpage))
-        .then();
-    }
-    return {
-      id: snippet.channelId,
-      name: snippet.title,
-      nextToken: ch.data.nextPageToken,
-    };
-  }
 }
-*/
+
+//最新動画の取得
+async function getlatestVideo(playlist_id) {
+  const auth = googleAuth();
+  const youtube = google.youtube({ version: "v3", auth });
+
+  const res = await youtube.playlistItems.list({
+    part: "snippet",
+    playlistId: playlist_id,
+  });
+  //console.log(res.data.items[0].snippet);
+  const video = res.data.items[0].snippet;
+  return {
+    latest_video: video.publishedAt,
+  };
+}
+
+async function getlatestVideos(chList) {
+  const auth = googleAuth();
+  const service = google.youtube({ version: "v3", auth });
+  await Promise.all(
+    chList.map(async (object) => {
+      if (Object.hasOwnProperty.call(chList[0], "uploads_id")) {
+        console.log(object.uploads_id);
+        return await service.playlistItems
+          .list({
+            part: "snippet",
+            playlistId: object.uploads_id,
+          })
+          .then(function (response) {
+            const video = response.data.items[0].snippet;
+            object.latest_video = video.publishedAt;
+          });
+      }
+    })
+  );
+}
+
 async function main() {
   const list = await getChList("");
   await sleep(3000);
-  console.log(chInfo);
+  let jsonData = JSON.stringify(chInfo, undefined, 4);
+  fs.writeFileSync("channels_data.json", jsonData);
+  //await sleep(2000);
+  // getUploadsList(chInfo); //最後の29こだけ取得できない
+  //await sleep(3000);
+  //await getlatestVideos(chInfo);
+  //await sleep(2300);
+  //console.log(JSON.stringify(chInfo, undefined, 4));
+  //console.log(fo);
 
   //testing();
   let test1 = []; //てすとでやってみて
   //
-  //await getUploadsList(chInfo);
+  //
   //const subsList = await getSubs();
   /* ここに回す処理 */
   //console.log(subsList.id);
