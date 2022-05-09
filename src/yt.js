@@ -1,6 +1,10 @@
 const { google } = require("googleapis");
 const fs = require("fs");
 const _async = require("async");
+const localData = require("./../jsondata/channels_data.json");
+const DetailData = require("./../jsondata/uploads.json");
+const date = require("./../jsondata/getdate.json");
+const del = require("./../jsondata/delete.json");
 
 const googleAuth = () => {
   const CREDENTIALS_PATH = "credentials.json";
@@ -105,64 +109,44 @@ async function getPropertyfromObject(object) {
 }
 let fo = 0;
 
-async function test() {
-  const workerLim = 10;
-  const res = await _async.mapValuesLimit(
-    chInfo,
-    workerLim,
-    _async.asyncify(getUploadsList)
-  );
-}
-
 //チャンネルIDから投稿動画のプレイリスト取得
 //object: {title: hogehoge, id: foo}
-async function getUploadsList(chList) {
-  const auth = googleAuth();
-  const service = google.youtube({ version: "v3", auth });
-  await Promise.all(
-    chList.map(async (object) => {
-      if (Object.hasOwnProperty.call(chList[0], "id")) {
-        return await service.channels
-          .list({
-            part: "snippet,contentDetails,statistics",
-            id: object.id,
-          })
-          .then(function (response) {
-            const channel = response.data.items;
-            const uploads_id =
-              channel[0].contentDetails.relatedPlaylists.uploads;
-            //console.log("UpID" + uploads_id);
-            object.uploads_id = uploads_id;
-            fo++;
-          });
-      }
-    })
-  );
+function getUploads(input, dataId) {
+  return new Promise((resolve, reject) => {
+    console.log(`START: dataId ->${dataId}  Name -> ${input.title}`);
+    const auth = googleAuth();
+    const service = google.youtube({ version: "v3", auth });
+    service.channels
+      .list({
+        part: "snippet, contentDetails, statistics",
+        id: input.id,
+      })
+      .then(function (response) {
+        const channel = response.data.items;
+        const uploads_id = channel[0].contentDetails.relatedPlaylists.uploads;
+        input.uploads_id = uploads_id;
+      });
+    setTimeout(() => {
+      console.log(`END: dataId ->${dataId}  Name -> ${input.title}`);
+      resolve({
+        input,
+      });
+    }, 1500);
+  });
 }
-/* 順序処理*/
 
-async function getUploadsList_old(chList) {
-  const auth = googleAuth();
-  const service = google.youtube({ version: "v3", auth });
-
-  for (const key in chList) {
-    if (Object.hasOwnProperty.call(chList[0], "id")) {
-      //console.log("Hello???");
-      //console.log(chList[key].id);
-      const data = await service.channels
-        .list({
-          part: "snippet,contentDetails,statistics",
-          id: chList[key].id,
-        })
-        .then(function (response) {
-          const channel = response.data.items;
-          const uploads_id = channel[0].contentDetails.relatedPlaylists.uploads;
-          //console.log("UpID" + uploads_id);
-          chList[key].uploads_id = uploads_id;
-          fo++;
-        });
-    }
+async function coCurrently_uploads(object) {
+  let chData = [];
+  const workerLim = 10;
+  const res = await _async.mapValuesLimit(
+    object,
+    workerLim,
+    _async.asyncify(getUploads)
+  );
+  for (const v of Object.values(res)) {
+    chData.push(v.input);
   }
+  return chData;
 }
 
 async function getUpId(id) {
@@ -182,7 +166,7 @@ async function getUpId(id) {
 }
 
 //最新動画の取得
-async function getlatestVideo(playlist_id) {
+async function __getlatestVideo(playlist_id) {
   const auth = googleAuth();
   const youtube = google.youtube({ version: "v3", auth });
 
@@ -197,7 +181,48 @@ async function getlatestVideo(playlist_id) {
   };
 }
 
-async function getlatestVideos(chList) {
+function getlatestVideo(input, dataId) {
+  return new Promise((resolve, reject) => {
+    console.log(`START: dataId ->${dataId}  Name -> ${input.title}`);
+    const auth = googleAuth();
+    const service = google.youtube({ version: "v3", auth });
+    service.playlistItems
+      .list({
+        part: "snippet",
+        playlistId: input.uploads_id,
+      })
+      .then(function (response) {
+        const video = response.data.items[0].snippet;
+        input.latestDate = video.publishedAt;
+      })
+      .catch((error) => {
+        input.latestDate = "";
+      });
+    setTimeout(() => {
+      console.log(`END: dataId ->${dataId}  Name -> ${input.title}`);
+      resolve({
+        input,
+      });
+    }, 1000);
+  });
+}
+
+async function coCurrently_getDate(object) {
+  console.log("Getting DATE of latest video");
+  let chData = [];
+  const workerLim = 10;
+  const res = await _async.mapValuesLimit(
+    object,
+    workerLim,
+    _async.asyncify(getlatestVideo)
+  );
+  for (const v of Object.values(res)) {
+    chData.push(v.input);
+  }
+  return chData;
+}
+
+async function __getlatestVideos(chList) {
   const auth = googleAuth();
   const service = google.youtube({ version: "v3", auth });
   await Promise.all(
@@ -218,11 +243,69 @@ async function getlatestVideos(chList) {
   );
 }
 
+async function __recommendDeleteChannels(chList) {
+  /* 1 year */
+  const DATE = new Date();
+  const YEAR = DATE.getFullYear();
+  await Promise.all(
+    chList.map(async (object) => {
+      if (Object.hasOwnProperty.call(chList[0], "latestDate")) {
+        //console.log(object.latestDate);
+        const str = object.latestDate;
+        if (str.indexOf(YEAR) == -1) {
+          object.delete = 0;
+        }
+        return 0;
+      }
+    })
+  );
+  return chList;
+}
+/*
+1 year 
+  2022 - 2022 = 0 => else 
+
+2 year 
+  2022 - 2020 = 2
+  2022 - 2021 = 1
+  2022 - 2022 = 0
+  今年とlatestDateの差分が0未満で処理
+
+ */
+async function recommendDeleteChannels(chList, y) {
+  const DATE = new Date();
+  const YEAR = DATE.getFullYear();
+  /* 2 year */
+  await Promise.all(
+    chList.map(async (object) => {
+      if (Object.hasOwnProperty.call(chList[0], "latestDate")) {
+        //console.log(object.latestDate);
+        const d = object.latestDate;
+        if (Math.sign(d - YEAR) == -1) {
+          object.delete = 0;
+          delete object.latestDate;
+          //console.log(`title:${object.title}  latest:${object.latestDate}`);
+        }
+        return 0;
+      }
+    })
+  );
+  return chList;
+}
+
 async function main() {
-  const list = await getChList("");
-  await sleep(3000);
-  let jsonData = JSON.stringify(chInfo, undefined, 4);
-  fs.writeFileSync("channels_data.json", jsonData);
+  //const list = await getChList("");
+  //await sleep(3000);
+  //chInfo = localData; //テスト用にローカルから持ち出してる
+  //const d = await coCurrently_uploads(chInfo);
+  /* JSON書き出し用
+  const data1 = JSON.stringify(d, undefined, 4);
+  fs.writeFileSync("uploads.json", data1);
+  */
+  //const f = await coCurrently_getDate(DetailData);
+  const ga = await recommendDeleteChannels(date, 1);
+  //console.log(del);
+  coCurrently_test(ga);
   //await sleep(2000);
   // getUploadsList(chInfo); //最後の29こだけ取得できない
   //await sleep(3000);

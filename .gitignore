@@ -4,4 +4,6 @@ credentials.json
 token.json
 /src/quickstart.js
 memo.txt
+/jsondata
 channels_data.json
+uploads.json
