@@ -135,7 +135,7 @@ function getUploads(input, dataId) {
   });
 }
 
-async function coCurrently_uploads(object) {
+async function executingGetUploads(object) {
   let chData = [];
   const workerLim = 10;
   const res = await _async.mapValuesLimit(
@@ -207,8 +207,8 @@ function getlatestVideo(input, dataId) {
   });
 }
 
-async function coCurrently_getDate(object) {
-  console.log("Getting DATE of latest video");
+async function executingGetlatestDate(object) {
+  //console.log("Getting DATE of latest video");
   let chData = [];
   const workerLim = 10;
   const res = await _async.mapValuesLimit(
@@ -261,17 +261,7 @@ async function __recommendDeleteChannels(chList) {
   );
   return chList;
 }
-/*
-1 year 
-  2022 - 2022 = 0 => else 
 
-2 year 
-  2022 - 2020 = 2
-  2022 - 2021 = 1
-  2022 - 2022 = 0
-  今年とlatestDateの差分が0未満で処理
-
- */
 async function recommendDeleteChannels(chList, y) {
   const DATE = new Date();
   const YEAR = DATE.getFullYear();
@@ -280,8 +270,9 @@ async function recommendDeleteChannels(chList, y) {
     chList.map(async (object) => {
       if (Object.hasOwnProperty.call(chList[0], "latestDate")) {
         //console.log(object.latestDate);
-        const d = object.latestDate;
-        if (Math.sign(d - YEAR) == -1) {
+        const ye = object.latestDate.substr(0, 4);
+        const latest = Number(ye);
+        if (latest - YEAR < y + 1 && Math.sign(latest - YEAR) == -1) {
           object.delete = 0;
           delete object.latestDate;
           //console.log(`title:${object.title}  latest:${object.latestDate}`);
@@ -291,6 +282,14 @@ async function recommendDeleteChannels(chList, y) {
     })
   );
   return chList;
+}
+
+async function runningAPI() {
+  const list = await getChList("");
+  await sleep(1500);
+  const u = await executingGetUploads(chInfo);
+  const d = await executingGetlatestDate(u);
+  const ga = await recommendDeleteChannels(d, 1);
 }
 
 async function main() {
