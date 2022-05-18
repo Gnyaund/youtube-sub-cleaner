@@ -284,12 +284,45 @@ async function recommendDeleteChannels(chList, y) {
   return chList;
 }
 
+function deleteChannels(input, dataId) {
+  const auth = googleAuth();
+  const service = google.youtube({ version: "v3", auth });
+  return new Promise((resolve, reject) => {
+    if (Object.hasOwnProperty.call(input, "del")) {
+      service.subscriptions.delete({
+        id: input.id,
+      });
+      input.del = 1;
+      setTimeout(() => {
+        resolve({ input });
+      }, 1000);
+    } else {
+      resolve({ input });
+    }
+  });
+}
+async function executingDeleteChannels(object) {
+  let chData = [];
+  const workerLim = 100;
+  const res = await _async.mapValuesLimit(
+    object,
+    workerLim,
+    _async.asyncify(deleteChannels)
+  );
+  for (const v of Object.values(res)) {
+    chData.push(v.input);
+  }
+  return chData;
+}
+
 async function runningAPI() {
   const list = await getChList("");
   await sleep(1500);
   const u = await executingGetUploads(chInfo);
   const d = await executingGetlatestDate(u);
   const ga = await recommendDeleteChannels(d, 1);
+  const data1 = JSON.stringify(ga, undefined, 4);
+  console.log(data1);
 }
 
 async function main() {
@@ -302,9 +335,7 @@ async function main() {
   fs.writeFileSync("uploads.json", data1);
   */
   //const f = await coCurrently_getDate(DetailData);
-  const ga = await recommendDeleteChannels(date, 1);
-  //console.log(del);
-  coCurrently_test(ga);
+  await runningAPI();
   //await sleep(2000);
   // getUploadsList(chInfo); //最後の29こだけ取得できない
   //await sleep(3000);

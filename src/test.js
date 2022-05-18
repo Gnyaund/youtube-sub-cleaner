@@ -7,6 +7,7 @@ const data = [
     title: "みざちゃんねる",
     id: "UCFBSXqhTCTQp7zfXO-FhA6A",
     uploads_id: "UUFBSXqhTCTQp7zfXO-FhA6A",
+    del: 0,
   },
   {
     title: "jun channel",
@@ -268,10 +269,43 @@ async function __getHistory() {
     });
 }
 
-__getPlaylist();
 /*
 再生履歴がAPI v3から取り出し不可になった
 →Google Data ExportでJSONで再生履歴データを持ってきてやったほうがよさそう
 puppeterでゴリ押しがいいかも
 
  */
+
+function deleteChannels(input, dataId) {
+  return new Promise((resolve, reject) => {
+    if (Object.hasOwnProperty.call(input, "del")) {
+      input.del = 1;
+      setTimeout(() => {
+        resolve({ input });
+      }, 1000);
+    } else {
+      resolve({ input });
+    }
+  });
+}
+
+async function executingDeleteChannels(object) {
+  let chData = [];
+  const workerLim = 100;
+  const res = await _async.mapValuesLimit(
+    object,
+    workerLim,
+    _async.asyncify(deleteChannels)
+  );
+  for (const v of Object.values(res)) {
+    chData.push(v.input);
+  }
+  return chData;
+}
+
+async function main() {
+  const t = await executingDeleteChannels(data);
+  console.log(t);
+}
+
+main();
