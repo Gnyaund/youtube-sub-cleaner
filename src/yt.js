@@ -65,7 +65,6 @@ const getChSetting = (ch_id) => {
 
 let chInfo = [];
 
-//1つずつなら一つの関数にまとめれそう　classとか使えばまとめていけるのかな
 let nextToken = "";
 async function getChList(token) {
   const auth = googleAuth();
@@ -288,7 +287,7 @@ function deleteChannels(input, dataId) {
   const auth = googleAuth();
   const service = google.youtube({ version: "v3", auth });
   return new Promise((resolve, reject) => {
-    if (Object.hasOwnProperty.call(input, "del")) {
+    if (Object.hasOwnProperty.call(input, "delete")) {
       service.subscriptions.delete({
         id: input.id,
       });
@@ -321,8 +320,12 @@ async function runningAPI() {
   const u = await executingGetUploads(chInfo);
   const d = await executingGetlatestDate(u);
   const ga = await recommendDeleteChannels(d, 1);
+  /*
   const data1 = JSON.stringify(ga, undefined, 4);
   console.log(data1);
+  */
+  const de = await executingDeleteChannels(ga);
+  console.log("DONE");
 }
 
 async function main() {
