@@ -75,9 +75,7 @@ async function getChList(token) {
     .then(async function (response) {
       const channel = response.data.items[0];
       const snippet = channel.snippet;
-      //console.log(response);
       nextToken = response.data.nextPageToken;
-      //const subs = await getNumOfSub();
 
       for (let i = 0; i < response.data.items.length; i++) {
         chInfo.push({
@@ -87,11 +85,8 @@ async function getChList(token) {
       }
       if (nextToken !== undefined) {
         getChList(nextToken);
-        // データの取得が完了した場合はconsoleに結果表示
       } else {
         return chInfo;
-        //console.log(chInfo);
-        //console.log(chInfo[0].id);
       }
     });
 }
@@ -173,7 +168,6 @@ async function __getlatestVideo(playlist_id) {
     part: "snippet",
     playlistId: playlist_id,
   });
-  //console.log(res.data.items[0].snippet);
   const video = res.data.items[0].snippet;
   return {
     latest_video: video.publishedAt,
@@ -207,7 +201,6 @@ function getlatestVideo(input, dataId) {
 }
 
 async function executingGetlatestDate(object) {
-  //console.log("Getting DATE of latest video");
   let chData = [];
   const workerLim = 10;
   const res = await _async.mapValuesLimit(
@@ -249,7 +242,6 @@ async function __recommendDeleteChannels(chList) {
   await Promise.all(
     chList.map(async (object) => {
       if (Object.hasOwnProperty.call(chList[0], "latestDate")) {
-        //console.log(object.latestDate);
         const str = object.latestDate;
         if (str.indexOf(YEAR) == -1) {
           object.delete = 0;
@@ -268,13 +260,11 @@ async function recommendDeleteChannels(chList, y) {
   await Promise.all(
     chList.map(async (object) => {
       if (Object.hasOwnProperty.call(chList[0], "latestDate")) {
-        //console.log(object.latestDate);
         const ye = object.latestDate.substr(0, 4);
         const latest = Number(ye);
         if (latest - YEAR < y + 1 && Math.sign(latest - YEAR) == -1) {
           object.delete = 0;
           delete object.latestDate;
-          //console.log(`title:${object.title}  latest:${object.latestDate}`);
         }
         return 0;
       }
@@ -329,35 +319,7 @@ async function runningAPI() {
 }
 
 async function main() {
-  //const list = await getChList("");
-  //await sleep(3000);
-  //chInfo = localData; //テスト用にローカルから持ち出してる
-  //const d = await coCurrently_uploads(chInfo);
-  /* JSON書き出し用
-  const data1 = JSON.stringify(d, undefined, 4);
-  fs.writeFileSync("uploads.json", data1);
-  */
-  //const f = await coCurrently_getDate(DetailData);
   await runningAPI();
-  //await sleep(2000);
-  // getUploadsList(chInfo); //最後の29こだけ取得できない
-  //await sleep(3000);
-  //await getlatestVideos(chInfo);
-  //await sleep(2300);
-  //console.log(JSON.stringify(chInfo, undefined, 4));
-  //console.log(fo);
-
-  //testing();
-  let test1 = []; //てすとでやってみて
-  //
-  //
-  //const subsList = await getSubs();
-  /* ここに回す処理 */
-  //console.log(subsList.id);
-  //const uploadsId = await getChannel(subsList.id);
-  //console.log(uploadsId);
-  //const latestVideos = await getlatestVideo(uploadsId);
-  //console.log(latestVideos);
 }
 
 main().catch((e) => {
