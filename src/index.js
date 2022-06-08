@@ -1,3 +1,6 @@
 import { runningAPI } from "./yt_es";
 
-runningAPI();
+runningAPI().catch((e) => {
+  console.error(e);
+  throw e;
+});
